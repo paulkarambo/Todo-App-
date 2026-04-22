@@ -32,6 +32,35 @@ class AppColors {
   ];
 }
 
+// ── Priority enum (shared by PlannerItem and Subtask) ─────────────────────────
+enum Priority { low, medium, high }
+
+extension PriorityExt on Priority {
+  String get name {
+    switch (this) {
+      case Priority.low:    return 'low';
+      case Priority.medium: return 'medium';
+      case Priority.high:   return 'high';
+    }
+  }
+
+  int get order {
+    switch (this) {
+      case Priority.low:    return 1;
+      case Priority.medium: return 2;
+      case Priority.high:   return 3;
+    }
+  }
+
+  static Priority fromString(String? s) {
+    switch (s) {
+      case 'high':   return Priority.high;
+      case 'medium': return Priority.medium;
+      default:       return Priority.low;
+    }
+  }
+}
+
 // ── Sort / Group Enums ────────────────────────────────────────────────────────
 enum SortMode { manual, priority, project }
 

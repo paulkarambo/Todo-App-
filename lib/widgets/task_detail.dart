@@ -5,6 +5,8 @@ import '../models/planner_item.dart';
 import '../models/subtask.dart';
 import '../providers/planner_provider.dart';
 import '../utils/constants.dart';
+import '../utils/date_utils.dart';
+import 'subtask_detail.dart';
 
 const _uuid = Uuid();
 
@@ -29,12 +31,9 @@ class _TaskDetailState extends State<TaskDetail> {
   void initState() {
     super.initState();
     _item = widget.item;
-    _titleCtrl = TextEditingController(
-        text: _item.isTask ? _item.text : _item.content);
+    _titleCtrl = TextEditingController(text: _item.isTask ? _item.text : _item.content);
     _notesCtrl = TextEditingController(text: _item.notes);
-    _subtaskCtrls = _item.subtasks
-        .map((s) => TextEditingController(text: s.text))
-        .toList();
+    _subtaskCtrls = _item.subtasks.map((s) => TextEditingController(text: s.text)).toList();
   }
 
   @override
@@ -49,25 +48,42 @@ class _TaskDetailState extends State<TaskDetail> {
 
   void _updateTitle(String v) {
     setState(() {
-      _item = _item.isTask
-          ? _item.copyWith(text: v)
-          : _item.copyWith(content: v);
+      _item = _item.isTask ? _item.copyWith(text: v) : _item.copyWith(content: v);
     });
   }
 
   void _save() {
-    final provider = widget.provider;
     final updated = _item.isTask
         ? _item.copyWith(text: _titleCtrl.text, notes: _notesCtrl.text)
         : _item.copyWith(content: _titleCtrl.text);
-    provider.updateItem(updated);
+    widget.provider.updateItem(updated);
     Navigator.of(context).pop();
   }
 
   void _delete() {
-    final provider = widget.provider;
-    provider.deleteItem(_item.id, _item.dateKey);
+    widget.provider.deleteItem(_item.id, _item.dateKey);
     Navigator.of(context).pop();
+  }
+
+  Future<void> _moveToDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: PlannerDateUtils.fromDateKey(_item.dateKey),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.accent,
+            surface: AppColors.card,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    widget.provider.moveItem(_item.id, _item.dateKey, PlannerDateUtils.toDateKey(picked));
+    if (mounted) Navigator.of(context).pop();
   }
 
   void _addSubtask() {
@@ -76,55 +92,93 @@ class _TaskDetailState extends State<TaskDetail> {
       _item = _item.copyWith(subtasks: [..._item.subtasks, newSub]);
       _subtaskCtrls.add(TextEditingController());
     });
-    final provider = widget.provider;
-    provider.addSubtask(_item.id, _item.dateKey, newSub);
+    widget.provider.addSubtask(_item.id, _item.dateKey, newSub);
   }
 
   void _updateSubtask(int index, String text) {
     final updated = _item.subtasks[index].copyWith(text: text);
     setState(() {
-      _item = _item.copyWith(
-        subtasks: [..._item.subtasks]..[index] = updated,
-      );
+      _item = _item.copyWith(subtasks: [..._item.subtasks]..[index] = updated);
     });
-    final provider = widget.provider;
-    provider.updateSubtask(_item.id, _item.dateKey, updated);
+    widget.provider.updateSubtask(_item.id, _item.dateKey, updated);
   }
 
   void _deleteSubtask(int index) {
     final subId = _item.subtasks[index].id;
     setState(() {
-      _item = _item.copyWith(
-        subtasks: [..._item.subtasks]..removeAt(index),
-      );
+      _item = _item.copyWith(subtasks: [..._item.subtasks]..removeAt(index));
       _subtaskCtrls.removeAt(index).dispose();
     });
-    final provider = widget.provider;
-    provider.deleteSubtask(_item.id, _item.dateKey, subId);
+    widget.provider.deleteSubtask(_item.id, _item.dateKey, subId);
   }
 
   void _toggleSubtask(int index) {
     final sub = _item.subtasks[index];
     final updated = sub.copyWith(completed: !sub.completed);
     setState(() {
-      _item = _item.copyWith(
-        subtasks: [..._item.subtasks]..[index] = updated,
-      );
+      _item = _item.copyWith(subtasks: [..._item.subtasks]..[index] = updated);
     });
-    final provider = widget.provider;
-    provider.toggleSubtask(_item.id, _item.dateKey, sub.id);
+    widget.provider.toggleSubtask(_item.id, _item.dateKey, sub.id);
+  }
+
+  void _openSubtaskDetail(int index) {
+    final sub = _item.subtasks[index];
+    final isWide = MediaQuery.of(context).size.width >= 900;
+    final content = SubtaskDetailSheet(
+      subtask: sub,
+      parentTaskName: _item.text,
+      parentItem: _item,
+      provider: widget.provider,
+      onBackToParent: () {},
+    );
+
+    if (isWide) {
+      showDialog(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.6),
+        builder: (_) => Dialog(
+          backgroundColor: AppColors.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+          insetPadding: const EdgeInsets.all(40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460, maxHeight: 600),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: content,
+            ),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.card,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        builder: (_) => DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.97,
+          expand: false,
+          builder: (ctx, scrollCtrl) => ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            child: content,
+          ),
+        ),
+      );
+    }
   }
 
   void _setPriority(Priority p) {
     setState(() => _item = _item.copyWith(priority: p));
-    final provider = widget.provider;
-    provider.updateItem(_item.copyWith(priority: p));
+    widget.provider.updateItem(_item.copyWith(priority: p));
   }
 
   void _setProject(String? id) {
     setState(() => _item = _item.copyWith(projectId: id));
-    final provider = widget.provider;
-    provider.updateItem(_item.copyWith(projectId: id));
+    widget.provider.updateItem(_item.copyWith(projectId: id));
   }
 
   @override
@@ -136,7 +190,7 @@ class _TaskDetailState extends State<TaskDetail> {
       children: [
         // Header
         Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
           decoration: const BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -167,318 +221,321 @@ class _TaskDetailState extends State<TaskDetail> {
 
         // Body
         Flexible(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                _Label('Bezeichnung'),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.borderSubtle),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _titleCtrl,
-                    autofocus: true,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+          child: ColoredBox(
+            color: AppColors.card,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  _Label('Bezeichnung'),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.borderSubtle),
                     ),
-                    decoration: const InputDecoration(hintText: 'Bezeichnung...'),
-                    onChanged: _updateTitle,
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _titleCtrl,
+                      autofocus: true,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: const InputDecoration(hintText: 'Bezeichnung...'),
+                      onChanged: _updateTitle,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                if (_item.isTask) ...[
-                  // Priority + Project row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _Label('Priorität'),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: Priority.values.map((p) {
-                                final meta = priorityMeta[p.name]!;
-                                final isActive = _item.priority == p;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: GestureDetector(
-                                      onTap: () => _setPriority(p),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 150),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: isActive
-                                              ? AppColors.accent
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(
+                  if (_item.isTask) ...[
+                    // Priority + Project row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Label('Priorität'),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: Priority.values.map((p) {
+                                  final meta = priorityMeta[p.name]!;
+                                  final isActive = _item.priority == p;
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: GestureDetector(
+                                        onTap: () => _setPriority(p),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 150),
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          decoration: BoxDecoration(
                                             color: isActive
-                                                ? Colors.transparent
-                                                : AppColors.borderSubtle,
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            meta.label[0],
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w900,
+                                                ? AppColors.accent
+                                                : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
                                               color: isActive
-                                                  ? Colors.white
-                                                  : AppColors.textDim,
+                                                  ? Colors.transparent
+                                                  : AppColors.borderSubtle,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              meta.label[0],
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w900,
+                                                color: isActive
+                                                    ? Colors.white
+                                                    : AppColors.textDim,
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _Label('Projekt'),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.surface.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.borderSubtle),
+                                  );
+                                }).toList(),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String?>(
-                                  value: _item.projectId,
-                                  isExpanded: true,
-                                  dropdownColor: AppColors.card,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  items: [
-                                    const DropdownMenuItem<String?>(
-                                      value: null,
-                                      child: Text('Kein Projekt',
-                                          style: TextStyle(
-                                              color: AppColors.textMuted)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Label('Projekt'),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.borderSubtle),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String?>(
+                                    value: _item.projectId,
+                                    isExpanded: true,
+                                    dropdownColor: AppColors.card,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textPrimary,
                                     ),
-                                    ...provider.projects.map((p) =>
-                                        DropdownMenuItem<String?>(
-                                          value: p.id,
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 8,
-                                                height: 8,
-                                                decoration: BoxDecoration(
-                                                  color: p.color,
-                                                  shape: BoxShape.circle,
+                                    items: [
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('Kein Projekt',
+                                            style: TextStyle(color: AppColors.textMuted)),
+                                      ),
+                                      ...provider.projects.map((p) =>
+                                          DropdownMenuItem<String?>(
+                                            value: p.id,
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  decoration: BoxDecoration(
+                                                    color: p.color,
+                                                    shape: BoxShape.circle,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(p.name),
-                                            ],
-                                          ),
-                                        )),
-                                  ],
-                                  onChanged: _setProject,
+                                                const SizedBox(width: 8),
+                                                Text(p.name),
+                                              ],
+                                            ),
+                                          )),
+                                    ],
+                                    onChanged: _setProject,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Subtasks
-                  Row(
-                    children: [
-                      _Label('Unteraufgaben'),
-                      const Spacer(),
-                      TextButton.icon(
-                        onPressed: _addSubtask,
-                        icon: const Icon(Icons.add_rounded,
-                            size: 16, color: AppColors.accent),
-                        label: const Text(
-                          'HINZUFÜGEN',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.accent,
-                            letterSpacing: 1.5,
+                            ],
                           ),
                         ),
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.5)),
+                      ],
                     ),
-                    padding: const EdgeInsets.all(12),
-                    child: _item.subtasks.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Text(
-                                'KEINE SUBTASKS',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textDim,
-                                  letterSpacing: 2,
+                    const SizedBox(height: 16),
+
+                    // Subtasks
+                    Row(
+                      children: [
+                        _Label('Unteraufgaben'),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _addSubtask,
+                          icon: const Icon(Icons.add_rounded,
+                              size: 16, color: AppColors.accent),
+                          label: const Text(
+                            'HINZUFÜGEN',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.accent,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                            color: AppColors.borderSubtle.withValues(alpha: 0.5)),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: _item.subtasks.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Text(
+                                  'KEINE SUBTASKS',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textDim,
+                                    letterSpacing: 2,
+                                  ),
                                 ),
                               ),
+                            )
+                          : Column(
+                              children: List.generate(_item.subtasks.length, (i) {
+                                final sub = _item.subtasks[i];
+                                return _SubtaskRow(
+                                  controller: _subtaskCtrls[i],
+                                  completed: sub.completed,
+                                  onToggle: () => _toggleSubtask(i),
+                                  onChanged: (v) => _updateSubtask(i, v),
+                                  onDelete: () => _deleteSubtask(i),
+                                  onTap: () => _openSubtaskDetail(i),
+                                );
+                              }),
                             ),
-                          )
-                        : Column(
-                            children: List.generate(_item.subtasks.length, (i) {
-                              final sub = _item.subtasks[i];
-                              return _SubtaskRow(
-                                controller: _subtaskCtrls[i],
-                                completed: sub.completed,
-                                onToggle: () => _toggleSubtask(i),
-                                onChanged: (v) => _updateSubtask(i, v),
-                                onDelete: () => _deleteSubtask(i),
-                              );
-                            }),
-                          ),
-                  ),
-                  const SizedBox(height: 24),
+                    ),
+                    const SizedBox(height: 16),
 
-                  // Notes
-                  _Label('Notizen & Details',
-                      color: AppColors.accent),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.borderSubtle),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _notesCtrl,
-                      maxLines: 6,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                          height: 1.6),
-                      decoration: const InputDecoration(
-                        hintText: 'Vertiefe deine Planung hier...',
-                        hintStyle:
-                            TextStyle(color: AppColors.borderSubtle, fontSize: 14),
+                    // Notes
+                    _Label('Notizen & Details', color: AppColors.accent),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.borderSubtle),
                       ),
-                    ),
-                  ),
-                ] else ...[
-                  // Note: markdown editor + preview toggle
-                  Row(
-                    children: [
-                      _Label('Markdown-Inhalt'),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () =>
-                            setState(() => _notePreview = !_notePreview),
-                        child: Text(
-                          _notePreview ? 'BEARBEITEN' : 'VORSCHAU',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.accent,
-                            letterSpacing: 1.5,
-                          ),
+                      padding: const EdgeInsets.all(16),
+                      child: TextField(
+                        controller: _notesCtrl,
+                        maxLines: 6,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            height: 1.6),
+                        decoration: const InputDecoration(
+                          hintText: 'Vertiefe deine Planung hier...',
+                          hintStyle:
+                              TextStyle(color: AppColors.borderSubtle, fontSize: 14),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.borderSubtle),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    constraints: const BoxConstraints(minHeight: 160),
-                    child: _notePreview
-                        ? MarkdownBody(
-                            data: _titleCtrl.text,
-                            styleSheet: MarkdownStyleSheet(
-                              p: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                  height: 1.6),
-                              h1: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800),
-                              h2: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700),
-                              h3: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700),
-                              strong: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w700),
-                              listBullet: const TextStyle(
-                                  color: AppColors.textMuted, fontSize: 14),
-                            ),
-                          )
-                        : TextField(
-                            controller: _titleCtrl,
-                            maxLines: null,
+                  ] else ...[
+                    // Note: markdown editor + preview toggle
+                    Row(
+                      children: [
+                        _Label('Markdown-Inhalt'),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _notePreview = !_notePreview),
+                          child: Text(
+                            _notePreview ? 'BEARBEITEN' : 'VORSCHAU',
                             style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                                height: 1.6,
-                                fontFamily: 'monospace'),
-                            decoration: const InputDecoration(
-                              hintText: 'Markdown schreiben...',
-                              hintStyle: TextStyle(
-                                  color: AppColors.borderSubtle, fontSize: 14),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.accent,
+                              letterSpacing: 1.5,
                             ),
                           ),
-                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.borderSubtle),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      constraints: const BoxConstraints(minHeight: 160),
+                      child: _notePreview
+                          ? MarkdownBody(
+                              data: _titleCtrl.text,
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14,
+                                    height: 1.6),
+                                h1: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800),
+                                h2: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700),
+                                h3: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700),
+                                strong: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w700),
+                                listBullet: const TextStyle(
+                                    color: AppColors.textMuted, fontSize: 14),
+                              ),
+                            )
+                          : TextField(
+                              controller: _titleCtrl,
+                              maxLines: null,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                  height: 1.6,
+                                  fontFamily: 'monospace'),
+                              decoration: const InputDecoration(
+                                hintText: 'Markdown schreiben...',
+                                hintStyle: TextStyle(
+                                    color: AppColors.borderSubtle, fontSize: 14),
+                              ),
+                            ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                 ],
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
           ),
         ),
 
         // Footer
         Container(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           decoration: const BoxDecoration(
             color: AppColors.card,
             border: Border(top: BorderSide(color: AppColors.borderSubtle)),
@@ -489,10 +546,9 @@ class _TaskDetailState extends State<TaskDetail> {
                 onPressed: _delete,
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.danger,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape:
+                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: const Text(
                   'LÖSCHEN',
@@ -503,13 +559,34 @@ class _TaskDetailState extends State<TaskDetail> {
                   ),
                 ),
               ),
+              if (_item.isTask) ...[
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: _moveToDate,
+                  icon: const Icon(Icons.calendar_today_rounded,
+                      size: 14, color: AppColors.textMuted),
+                  label: const Text(
+                    'VERSCHIEBEN',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textMuted,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
               const Spacer(),
               FilledButton(
                 onPressed: _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18)),
                   elevation: 8,
@@ -558,6 +635,7 @@ class _SubtaskRow extends StatelessWidget {
   final VoidCallback onToggle;
   final ValueChanged<String> onChanged;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   const _SubtaskRow({
     required this.controller,
@@ -565,6 +643,7 @@ class _SubtaskRow extends StatelessWidget {
     required this.onToggle,
     required this.onChanged,
     required this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -590,21 +669,24 @@ class _SubtaskRow extends StatelessWidget {
                 controller: controller,
                 style: TextStyle(
                   fontSize: 13,
-                  color: completed
-                      ? AppColors.textDim
-                      : AppColors.textSecondary,
-                  decoration: completed
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
+                  color: completed ? AppColors.textDim : AppColors.textSecondary,
+                  decoration: completed ? TextDecoration.lineThrough : TextDecoration.none,
                 ),
                 decoration: const InputDecoration(
                   hintText: 'Was ist zu tun?',
-                  hintStyle:
-                      TextStyle(color: AppColors.textDim, fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.textDim, fontSize: 13),
                 ),
                 onChanged: onChanged,
               ),
             ),
+            if (onTap != null)
+              IconButton(
+                onPressed: onTap,
+                icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                color: AppColors.textDim,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
             IconButton(
               onPressed: onDelete,
               icon: const Icon(Icons.delete_outline_rounded, size: 18),

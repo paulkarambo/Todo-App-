@@ -67,7 +67,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.card,
         builder: (_) => DraggableScrollableSheet(
           initialChildSize: 0.9,
           minChildSize: 0.5,
@@ -108,7 +108,7 @@ class _DesktopLayout extends StatelessWidget {
       body: Row(
         children: [
           // Persistent sidebar
-          const SideBar(persistent: true),
+          SideBar(persistent: true, onItemTap: onItemTap),
           Container(width: 1, color: AppColors.borderSubtle),
           // Main content
           Expanded(
@@ -138,9 +138,9 @@ class _MobileLayout extends StatelessWidget {
     return Scaffold(
       key: scaffoldKey,
       backgroundColor: AppColors.background,
-      drawer: const Drawer(
+      drawer: Drawer(
         backgroundColor: AppColors.card,
-        child: SideBar(persistent: false),
+        child: SideBar(persistent: false, onItemTap: onItemTap),
       ),
       body: Column(
         children: [
@@ -167,7 +167,7 @@ class _TopBar extends StatelessWidget {
         provider.selectedDate, DateTime.now());
 
     return Container(
-      height: 64,
+      height: 52,
       decoration: const BoxDecoration(
         color: AppColors.background,
         border:
