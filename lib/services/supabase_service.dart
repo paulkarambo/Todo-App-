@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/planner_item.dart';
 import '../models/project.dart';
 import '../models/subtask.dart';
+import '../utils/constants.dart';
 
 class SupabaseService {
   static SupabaseClient get _db => Supabase.instance.client;

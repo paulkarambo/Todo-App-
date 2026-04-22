@@ -34,7 +34,8 @@ class _TaskRow extends StatelessWidget {
   final bool isDraggable;
   final int index;
 
-  const _TaskRow({required this.item, required this.onTap, this.isDraggable = false, this.index = 0});
+  const _TaskRow(
+      {required this.item, required this.onTap, this.isDraggable = false, this.index = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +47,7 @@ class _TaskRow extends StatelessWidget {
       onTap: () => onTap(item),
       borderRadius: BorderRadius.circular(24),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -55,7 +56,7 @@ class _TaskRow extends StatelessWidget {
                 // Priority indicator
                 Container(
                   width: 4,
-                  height: 32,
+                  height: 24,
                   decoration: BoxDecoration(
                     color: priorityColor,
                     borderRadius: BorderRadius.circular(4),
@@ -65,8 +66,8 @@ class _TaskRow extends StatelessWidget {
 
                 // Checkbox
                 SizedBox(
-                  width: 28,
-                  height: 28,
+                  width: 22,
+                  height: 22,
                   child: Checkbox(
                     value: item.completed,
                     onChanged: (_) => provider.toggleCompleted(item.id, item.dateKey),
@@ -82,14 +83,11 @@ class _TaskRow extends StatelessWidget {
                       Text(
                         item.text,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: item.completed
-                              ? AppColors.textDim
-                              : AppColors.textSecondary,
-                          decoration: item.completed
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
+                          color: item.completed ? AppColors.textDim : AppColors.textSecondary,
+                          decoration:
+                              item.completed ? TextDecoration.lineThrough : TextDecoration.none,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -128,24 +126,26 @@ class _TaskRow extends StatelessWidget {
                     index: index,
                     child: const Padding(
                       padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.drag_handle_rounded,
-                          size: 20, color: AppColors.textDim),
+                      child: Icon(Icons.drag_handle_rounded, size: 20, color: AppColors.textDim),
                     ),
                   ),
               ],
             ),
 
-            // Notes preview
+            // Notes preview (rendered Markdown)
             if (provider.showTexts && item.notes.isNotEmpty) ...[
               const SizedBox(height: 6),
               Padding(
-                padding: const EdgeInsets.only(left: 56),
-                child: Text(
-                  item.notes,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textDim, height: 1.4),
+                padding: const EdgeInsets.only(left: 38),
+                child: MarkdownBody(
+                  data: item.notes,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 12, color: AppColors.textDim, height: 1.4),
+                    strong: const TextStyle(
+                        fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w700),
+                    listBullet: const TextStyle(fontSize: 12, color: AppColors.textDim),
+                  ),
+                  softLineBreak: true,
                 ),
               ),
             ],
@@ -154,7 +154,7 @@ class _TaskRow extends StatelessWidget {
             if (provider.showSubtasks && item.subtasks.isNotEmpty) ...[
               const SizedBox(height: 8),
               Padding(
-                padding: const EdgeInsets.only(left: 56),
+                padding: const EdgeInsets.only(left: 38),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: item.subtasks.map((sub) {
@@ -170,9 +170,7 @@ class _TaskRow extends StatelessWidget {
                                   ? Icons.check_circle_rounded
                                   : Icons.circle_outlined,
                               size: 14,
-                              color: sub.completed
-                                  ? AppColors.textDim
-                                  : AppColors.border,
+                              color: sub.completed ? AppColors.textDim : AppColors.border,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -181,15 +179,12 @@ class _TaskRow extends StatelessWidget {
                               sub.text.isEmpty ? 'Leere Unteraufgabe' : sub.text,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: sub.completed
-                                    ? AppColors.textDim
-                                    : AppColors.textMuted,
+                                color: sub.completed ? AppColors.textDim : AppColors.textMuted,
                                 decoration: sub.completed
                                     ? TextDecoration.lineThrough
                                     : TextDecoration.none,
-                                fontStyle: sub.text.isEmpty
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
+                                fontStyle:
+                                    sub.text.isEmpty ? FontStyle.italic : FontStyle.normal,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -225,34 +220,22 @@ class _NoteRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.article_outlined,
-                size: 20, color: AppColors.textDim),
+            const Icon(Icons.article_outlined, size: 20, color: AppColors.textDim),
             const SizedBox(width: 12),
             Expanded(
               child: MarkdownBody(
                 data: item.content,
                 styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                      height: 1.6),
+                  p: const TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.6),
                   h1: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800),
+                      color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w800),
                   h2: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700),
+                      color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w700),
                   h3: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700),
+                      color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700),
                   strong: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700),
-                  listBullet: const TextStyle(
-                      color: AppColors.textMuted, fontSize: 13),
+                      color: AppColors.textSecondary, fontWeight: FontWeight.w700),
+                  listBullet: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                 ),
               ),
             ),

@@ -20,6 +20,8 @@ class PlannerProvider extends ChangeNotifier {
   SortMode _sortMode = SortMode.manual;
   SortDirection _sortDir = SortDirection.desc;
   String? _filterProjectId;
+  String? _defaultProjectId;
+  Priority _defaultPriority = Priority.low;
   bool _needsStartupModal = false;
   bool _isLoaded = false;
 
@@ -34,6 +36,8 @@ class PlannerProvider extends ChangeNotifier {
   SortMode get sortMode => _sortMode;
   SortDirection get sortDir => _sortDir;
   String? get filterProjectId => _filterProjectId;
+  String? get defaultProjectId => _defaultProjectId;
+  Priority get defaultPriority => _defaultPriority;
 
   bool hasItemsOnDate(String dateKey) =>
       (_itemsByDate[dateKey]?.isNotEmpty) ?? false;
@@ -96,6 +100,19 @@ class PlannerProvider extends ChangeNotifier {
     return result;
   }
 
+  /// All task items across all dates, sorted: today+future ascending, then past ascending.
+  List<MapEntry<String, List<PlannerItem>>> get allTasksByDate {
+    final today = PlannerDateUtils.toDateKey(DateTime.now());
+    final entries = _itemsByDate.entries
+        .where((e) => e.value.any((i) => i.isTask))
+        .toList();
+    final future = entries.where((e) => e.key.compareTo(today) >= 0).toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final past = entries.where((e) => e.key.compareTo(today) < 0).toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return [...future, ...past];
+  }
+
   Project? projectById(String? id) {
     if (id == null) return null;
     try {
@@ -143,6 +160,8 @@ class PlannerProvider extends ChangeNotifier {
           (e) => e.name == (s['sortDir'] as String?),
           orElse: () => SortDirection.desc,
         );
+        _defaultProjectId = s['defaultProjectId'] as String?;
+        _defaultPriority = PriorityExt.fromString(s['defaultPriority'] as String?);
       }
     } catch (_) {}
 
@@ -161,6 +180,8 @@ class PlannerProvider extends ChangeNotifier {
         'groupByProject': _groupByProject,
         'sortMode': _sortMode.name,
         'sortDir': _sortDir.name,
+        'defaultProjectId': _defaultProjectId,
+        'defaultPriority': _defaultPriority.name,
       }),
     ]);
   }
@@ -309,6 +330,27 @@ class PlannerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void moveItem(String id, String fromDateKey, String toDateKey) {
+    if (fromDateKey == toDateKey) return;
+    final fromList = _itemsByDate[fromDateKey];
+    if (fromList == null) return;
+    final item = fromList.where((i) => i.id == id).firstOrNull;
+    if (item == null) return;
+
+    _itemsByDate[fromDateKey] = fromList.where((i) => i.id != id).toList();
+
+    final toList = List<PlannerItem>.from(_itemsByDate[toDateKey] ?? []);
+    toList.insert(0, item.copyWith(dateKey: toDateKey, sortOrder: 0));
+    _itemsByDate[toDateKey] = toList
+        .asMap()
+        .entries
+        .map((e) => e.value.copyWith(sortOrder: e.key))
+        .toList();
+
+    _saveToSupabase();
+    notifyListeners();
+  }
+
   void toggleCompleted(String id, String dateKey) {
     final list = _itemsByDate[dateKey];
     if (list == null) return;
@@ -427,6 +469,18 @@ class PlannerProvider extends ChangeNotifier {
 
   void setFilterProject(String? projectId) {
     _filterProjectId = projectId;
+    notifyListeners();
+  }
+
+  void setDefaultProject(String? projectId) {
+    _defaultProjectId = projectId;
+    _saveToSupabase();
+    notifyListeners();
+  }
+
+  void setDefaultPriority(Priority priority) {
+    _defaultPriority = priority;
+    _saveToSupabase();
     notifyListeners();
   }
 }
