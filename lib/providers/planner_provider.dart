@@ -1,17 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/planner_item.dart';
 import '../models/project.dart';
 import '../models/subtask.dart';
+import '../services/supabase_service.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
-
-const _keyStarted = 'planner_started';
-const _keyItems = 'planner_items';
-const _keyProjects = 'planner_projects';
-const _keySettings = 'planner_settings';
 
 const _uuid = Uuid();
 
@@ -45,14 +39,13 @@ class PlannerProvider extends ChangeNotifier {
       (_itemsByDate[dateKey]?.isNotEmpty) ?? false;
 
   List<PlannerItem> get currentItems {
-    var list = List<PlannerItem>.from(_itemsByDate[PlannerDateUtils.toDateKey(_selectedDate)] ?? []);
+    var list = List<PlannerItem>.from(
+        _itemsByDate[PlannerDateUtils.toDateKey(_selectedDate)] ?? []);
 
-    // Filter by project
     if (_filterProjectId != null) {
       list = list.where((i) => i.projectId == _filterProjectId).toList();
     }
 
-    // Sort
     if (_sortMode == SortMode.manual) {
       list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     } else if (_sortMode == SortMode.priority) {
@@ -65,10 +58,14 @@ class PlannerProvider extends ChangeNotifier {
       final m = _sortDir == SortDirection.asc ? 1 : -1;
       list.sort((a, b) {
         if (a.isNote || b.isNote) return 0;
-        final pA = _projects.firstWhere((p) => p.id == a.projectId,
-            orElse: () => const Project(id: '', name: '', colorValue: 0)).name;
-        final pB = _projects.firstWhere((p) => p.id == b.projectId,
-            orElse: () => const Project(id: '', name: '', colorValue: 0)).name;
+        final pA = _projects
+            .firstWhere((p) => p.id == a.projectId,
+                orElse: () => const Project(id: '', name: '', colorValue: 0))
+            .name;
+        final pB = _projects
+            .firstWhere((p) => p.id == b.projectId,
+                orElse: () => const Project(id: '', name: '', colorValue: 0))
+            .name;
         return pA.compareTo(pB) * m;
       });
     }
@@ -76,7 +73,6 @@ class PlannerProvider extends ChangeNotifier {
     return list;
   }
 
-  /// Returns items grouped by project. Each entry: {project, items}.
   List<Map<String, dynamic>> get groupedItems {
     final all = currentItems;
     final result = <Map<String, dynamic>>[];
@@ -110,9 +106,8 @@ class PlannerProvider extends ChangeNotifier {
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────
-  Future<void> loadFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final started = prefs.getBool(_keyStarted) ?? false;
+  Future<void> loadFromSupabase() async {
+    final started = await SupabaseService.isStarted();
 
     if (!started) {
       _needsStartupModal = true;
@@ -121,37 +116,22 @@ class PlannerProvider extends ChangeNotifier {
       return;
     }
 
-    // Projects
-    final projJson = prefs.getString(_keyProjects);
-    if (projJson != null) {
-      try {
-        final list = jsonDecode(projJson) as List<dynamic>;
-        _projects = list
-            .map((e) => Project.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } catch (_) {}
-    }
+    try {
+      final projects = await SupabaseService.fetchProjects();
+      if (projects.isNotEmpty) _projects = projects;
+    } catch (_) {}
 
-    // Items
-    final itemsJson = prefs.getString(_keyItems);
-    if (itemsJson != null) {
-      try {
-        final list = jsonDecode(itemsJson) as List<dynamic>;
-        final items = list
-            .map((e) => PlannerItem.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _itemsByDate = {};
-        for (final item in items) {
-          _itemsByDate.putIfAbsent(item.dateKey, () => []).add(item);
-        }
-      } catch (_) {}
-    }
+    try {
+      final items = await SupabaseService.fetchAllItems();
+      _itemsByDate = {};
+      for (final item in items) {
+        _itemsByDate.putIfAbsent(item.dateKey, () => []).add(item);
+      }
+    } catch (_) {}
 
-    // Settings
-    final settingsJson = prefs.getString(_keySettings);
-    if (settingsJson != null) {
-      try {
-        final s = jsonDecode(settingsJson) as Map<String, dynamic>;
+    try {
+      final s = await SupabaseService.fetchSettings();
+      if (s != null) {
         _showTexts = s['showTexts'] as bool? ?? true;
         _showSubtasks = s['showSubtasks'] as bool? ?? true;
         _groupByProject = s['groupByProject'] as bool? ?? false;
@@ -163,28 +143,25 @@ class PlannerProvider extends ChangeNotifier {
           (e) => e.name == (s['sortDir'] as String?),
           orElse: () => SortDirection.desc,
         );
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
 
     _isLoaded = true;
     notifyListeners();
   }
 
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _saveToSupabase() async {
     final allItems = _itemsByDate.values.expand((l) => l).toList();
     await Future.wait([
-      prefs.setString(_keyItems, jsonEncode(allItems.map((i) => i.toJson()).toList())),
-      prefs.setString(_keyProjects, jsonEncode(_projects.map((p) => p.toJson()).toList())),
-      prefs.setString(
-          _keySettings,
-          jsonEncode({
-            'showTexts': _showTexts,
-            'showSubtasks': _showSubtasks,
-            'groupByProject': _groupByProject,
-            'sortMode': _sortMode.name,
-            'sortDir': _sortDir.name,
-          })),
+      SupabaseService.upsertItems(allItems),
+      SupabaseService.upsertProjects(_projects),
+      SupabaseService.saveSettings({
+        'showTexts': _showTexts,
+        'showSubtasks': _showSubtasks,
+        'groupByProject': _groupByProject,
+        'sortMode': _sortMode.name,
+        'sortDir': _sortDir.name,
+      }),
     ]);
   }
 
@@ -203,7 +180,8 @@ class PlannerProvider extends ChangeNotifier {
           text: 'Willkommen! — Hier klicken für Details',
           priority: Priority.high,
           projectId: DefaultProjects.arbeitId,
-          notes: '**Markdown** in Notizen wird unterstützt.\n- Unteraufgaben hinzufügen\n- Drag & Drop im manuellen Modus',
+          notes:
+              '**Markdown** in Notizen wird unterstützt.\n- Unteraufgaben hinzufügen\n- Drag & Drop im manuellen Modus',
           subtasks: [
             Subtask(id: _uuid.v4(), text: 'Unteraufgabe ausprobieren'),
             Subtask(id: _uuid.v4(), text: 'Priorität einstellen'),
@@ -233,7 +211,8 @@ class PlannerProvider extends ChangeNotifier {
         PlannerItem(
           id: _uuid.v4(),
           type: ItemType.note,
-          content: '### Tagesnotiz\n- Erledigtes wird grau\n- **Drag & Drop** im manuellen Modus möglich',
+          content:
+              '### Tagesnotiz\n- Erledigtes wird grau\n- **Drag & Drop** im manuellen Modus möglich',
           sortOrder: 3,
           dateKey: today,
         ),
@@ -262,9 +241,8 @@ class PlannerProvider extends ChangeNotifier {
     };
 
     _needsStartupModal = false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyStarted, true);
-    await _save();
+    await SupabaseService.setStarted();
+    await _saveToSupabase();
     notifyListeners();
   }
 
@@ -272,9 +250,8 @@ class PlannerProvider extends ChangeNotifier {
     _projects = [Project.arbeit, Project.privat];
     _itemsByDate = {};
     _needsStartupModal = false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyStarted, true);
-    await _save();
+    await SupabaseService.setStarted();
+    await _saveToSupabase();
     notifyListeners();
   }
 
@@ -303,14 +280,13 @@ class PlannerProvider extends ChangeNotifier {
   void addItem(PlannerItem item) {
     final key = item.dateKey;
     final existing = _itemsByDate[key] ?? [];
-    // Prepend new item; shift all existing sortOrders up by 1
     final shifted = existing
         .asMap()
         .entries
         .map((e) => e.value.copyWith(sortOrder: e.key + 1))
         .toList();
     _itemsByDate[key] = [item.copyWith(sortOrder: 0), ...shifted];
-    _save();
+    _saveToSupabase();
     notifyListeners();
   }
 
@@ -318,8 +294,9 @@ class PlannerProvider extends ChangeNotifier {
     final key = updated.dateKey;
     final list = _itemsByDate[key];
     if (list == null) return;
-    _itemsByDate[key] = list.map((i) => i.id == updated.id ? updated : i).toList();
-    _save();
+    _itemsByDate[key] =
+        list.map((i) => i.id == updated.id ? updated : i).toList();
+    _saveToSupabase();
     notifyListeners();
   }
 
@@ -327,43 +304,46 @@ class PlannerProvider extends ChangeNotifier {
     final list = _itemsByDate[dateKey];
     if (list == null) return;
     _itemsByDate[dateKey] = list.where((i) => i.id != id).toList();
-    _save();
+    SupabaseService.deleteItem(id);
+    _saveToSupabase();
     notifyListeners();
   }
 
   void toggleCompleted(String id, String dateKey) {
     final list = _itemsByDate[dateKey];
     if (list == null) return;
-    _itemsByDate[dateKey] =
-        list.map((i) => i.id == id ? i.copyWith(completed: !i.completed) : i).toList();
-    _save();
+    _itemsByDate[dateKey] = list
+        .map((i) => i.id == id ? i.copyWith(completed: !i.completed) : i)
+        .toList();
+    _saveToSupabase();
     notifyListeners();
   }
 
   void reorderItems(int oldIndex, int newIndex) {
     final key = PlannerDateUtils.toDateKey(_selectedDate);
     var list = List<PlannerItem>.from(_itemsByDate[key] ?? []);
-    if (_filterProjectId != null) return; // reorder disabled when filtered
+    if (_filterProjectId != null) return;
     if (oldIndex < newIndex) newIndex--;
     final item = list.removeAt(oldIndex);
     list.insert(newIndex, item);
-    // Reassign sortOrder
     list = list
         .asMap()
         .entries
         .map((e) => e.value.copyWith(sortOrder: e.key))
         .toList();
     _itemsByDate[key] = list;
-    _save();
+    _saveToSupabase();
     notifyListeners();
   }
 
   // ── Subtasks ───────────────────────────────────────────────────────────────
-  void _updateItemInDate(String itemId, String dateKey, PlannerItem Function(PlannerItem) updater) {
+  void _updateItemInDate(
+      String itemId, String dateKey, PlannerItem Function(PlannerItem) updater) {
     final list = _itemsByDate[dateKey];
     if (list == null) return;
-    _itemsByDate[dateKey] = list.map((i) => i.id == itemId ? updater(i) : i).toList();
-    _save();
+    _itemsByDate[dateKey] =
+        list.map((i) => i.id == itemId ? updater(i) : i).toList();
+    _saveToSupabase();
     notifyListeners();
   }
 
@@ -376,7 +356,9 @@ class PlannerProvider extends ChangeNotifier {
   void updateSubtask(String itemId, String dateKey, Subtask updated) {
     _updateItemInDate(itemId, dateKey, (item) {
       return item.copyWith(
-        subtasks: item.subtasks.map((s) => s.id == updated.id ? updated : s).toList(),
+        subtasks: item.subtasks
+            .map((s) => s.id == updated.id ? updated : s)
+            .toList(),
       );
     });
   }
@@ -393,7 +375,8 @@ class PlannerProvider extends ChangeNotifier {
     _updateItemInDate(itemId, dateKey, (item) {
       return item.copyWith(
         subtasks: item.subtasks
-            .map((s) => s.id == subtaskId ? s.copyWith(completed: !s.completed) : s)
+            .map((s) =>
+                s.id == subtaskId ? s.copyWith(completed: !s.completed) : s)
             .toList(),
       );
     });
@@ -402,26 +385,27 @@ class PlannerProvider extends ChangeNotifier {
   // ── Projects ───────────────────────────────────────────────────────────────
   void addProject(Project project) {
     _projects = [..._projects, project];
-    _save();
+    _saveToSupabase();
     notifyListeners();
   }
 
   void updateProject(Project updated) {
-    _projects = _projects.map((p) => p.id == updated.id ? updated : p).toList();
-    _save();
+    _projects =
+        _projects.map((p) => p.id == updated.id ? updated : p).toList();
+    _saveToSupabase();
     notifyListeners();
   }
 
   // ── Controls ───────────────────────────────────────────────────────────────
   void setShowTexts(bool v) {
     _showTexts = v;
-    _save();
+    _saveToSupabase();
     notifyListeners();
   }
 
   void setShowSubtasks(bool v) {
     _showSubtasks = v;
-    _save();
+    _saveToSupabase();
     notifyListeners();
   }
 
@@ -436,7 +420,8 @@ class PlannerProvider extends ChangeNotifier {
   }
 
   void toggleSortDirection() {
-    _sortDir = _sortDir == SortDirection.asc ? SortDirection.desc : SortDirection.asc;
+    _sortDir =
+        _sortDir == SortDirection.asc ? SortDirection.desc : SortDirection.asc;
     notifyListeners();
   }
 
