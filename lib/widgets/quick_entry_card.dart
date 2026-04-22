@@ -67,7 +67,7 @@ class _QuickEntryCardState extends State<QuickEntryCard> {
         border: Border.all(color: AppColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -154,8 +154,8 @@ class _QuickEntryCardState extends State<QuickEntryCard> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                   elevation: 6,
-                  shadowColor: AppColors.accent.withOpacity(0.4),
-                  disabledBackgroundColor: AppColors.accent.withOpacity(0.2),
+                  shadowColor: AppColors.accent.withValues(alpha: 0.4),
+                  disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.2),
                 ),
                 child: const Text(
                   'HINZUFÜGEN',

@@ -28,7 +28,7 @@ class StartupModal extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accent.withOpacity(0.4),
+                      color: AppColors.accent.withValues(alpha: 0.4),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -103,7 +103,7 @@ class _StartupButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: primary ? 8 : 0,
-          shadowColor: primary ? AppColors.accent.withOpacity(0.4) : null,
+          shadowColor: primary ? AppColors.accent.withValues(alpha: 0.4) : null,
         ),
         child: Text(
           label,

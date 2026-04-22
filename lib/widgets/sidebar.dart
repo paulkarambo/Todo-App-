@@ -263,7 +263,7 @@ class _AddProjectButton extends StatelessWidget {
 
   void _showAddProjectDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
-    int selectedColor = AppColors.projectColors[0].value;
+    int selectedColor = AppColors.projectColors[0].toARGB32();
 
     showDialog(
       context: context,
@@ -318,14 +318,14 @@ class _AddProjectButton extends StatelessWidget {
                 children: AppColors.projectColors
                     .map((c) => GestureDetector(
                           onTap: () =>
-                              setDialogState(() => selectedColor = c.value),
+                              setDialogState(() => selectedColor = c.toARGB32()),
                           child: Container(
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
                               color: c,
                               shape: BoxShape.circle,
-                              border: selectedColor == c.value
+                              border: selectedColor == c.toARGB32()
                                   ? Border.all(
                                       color: Colors.white, width: 2.5)
                                   : null,

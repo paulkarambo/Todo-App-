@@ -37,7 +37,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         showDialog(
           context: context,
           barrierDismissible: false,
-          barrierColor: AppColors.background.withOpacity(0.95),
+          barrierColor: AppColors.background.withValues(alpha: 0.95),
           builder: (_) => const StartupModal(),
         );
       }
@@ -53,7 +53,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (_isDesktop) {
       showDialog(
         context: context,
-        barrierColor: Colors.black.withOpacity(0.85),
+        barrierColor: Colors.black.withValues(alpha: 0.85),
         builder: (_) => Dialog(
           backgroundColor: AppColors.card,
           shape:
@@ -402,7 +402,7 @@ class _ToggleBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: active
-                  ? AppColors.accent.withOpacity(0.5)
+                  ? AppColors.accent.withValues(alpha: 0.5)
                   : AppColors.borderSubtle,
             ),
           ),

@@ -177,7 +177,7 @@ class _TaskDetailState extends State<TaskDetail> {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withOpacity(0.5),
+                    color: AppColors.surface.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.borderSubtle),
                   ),
@@ -260,7 +260,7 @@ class _TaskDetailState extends State<TaskDetail> {
                             const SizedBox(height: 8),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppColors.surface.withOpacity(0.5),
+                                color: AppColors.surface.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: AppColors.borderSubtle),
                               ),
@@ -337,9 +337,9 @@ class _TaskDetailState extends State<TaskDetail> {
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.3),
+                      color: AppColors.surface.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.borderSubtle.withOpacity(0.5)),
+                      border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.5)),
                     ),
                     padding: const EdgeInsets.all(12),
                     child: _item.subtasks.isEmpty
@@ -378,7 +378,7 @@ class _TaskDetailState extends State<TaskDetail> {
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.5),
+                      color: AppColors.surface.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.borderSubtle),
                     ),
@@ -421,7 +421,7 @@ class _TaskDetailState extends State<TaskDetail> {
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.5),
+                      color: AppColors.surface.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.borderSubtle),
                     ),
@@ -513,7 +513,7 @@ class _TaskDetailState extends State<TaskDetail> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18)),
                   elevation: 8,
-                  shadowColor: AppColors.accent.withOpacity(0.4),
+                  shadowColor: AppColors.accent.withValues(alpha: 0.4),
                 ),
                 child: const Text(
                   'FERTIGSTELLEN',
@@ -574,9 +574,9 @@ class _SubtaskRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.4),
+          color: AppColors.surface.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withOpacity(0.04)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
         ),
         child: Row(
           children: [
@@ -609,7 +609,7 @@ class _SubtaskRow extends StatelessWidget {
               onPressed: onDelete,
               icon: const Icon(Icons.delete_outline_rounded, size: 18),
               color: AppColors.textDim,
-              hoverColor: AppColors.danger.withOpacity(0.1),
+              hoverColor: AppColors.danger.withValues(alpha: 0.1),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),

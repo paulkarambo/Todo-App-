@@ -91,7 +91,7 @@ class _GroupedList extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                   boxShadow: [
                     BoxShadow(
-                      color: project.color.withOpacity(0.4),
+                      color: project.color.withValues(alpha: 0.4),
                       blurRadius: 6,
                     ),
                   ],

@@ -8,7 +8,12 @@ class Project {
 
   const Project({required this.id, required this.name, required this.colorValue});
 
-  Color get color => Color(colorValue);
+  Color get color => Color.fromARGB(
+        (colorValue >> 24) & 0xFF,
+        (colorValue >> 16) & 0xFF,
+        (colorValue >> 8) & 0xFF,
+        colorValue & 0xFF,
+      );
 
   Project copyWith({String? id, String? name, int? colorValue}) => Project(
         id: id ?? this.id,
@@ -25,7 +30,7 @@ class Project {
   factory Project.fromJson(Map<String, dynamic> map) => Project(
         id: map['id'] as String? ?? '',
         name: map['name'] as String? ?? '',
-        colorValue: map['colorValue'] as int? ?? AppColors.accent.value,
+        colorValue: map['colorValue'] as int? ?? AppColors.accent.toARGB32(),
       );
 
   // Built-in default projects

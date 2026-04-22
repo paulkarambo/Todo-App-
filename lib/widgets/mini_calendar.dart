@@ -130,7 +130,7 @@ class _NavBtn extends StatelessWidget {
         width: 24,
         height: 24,
         decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.5),
+          color: AppColors.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: AppColors.textMuted),
@@ -159,7 +159,7 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color bgColor = Colors.transparent;
-    Color textColor = isCurrentMonth ? AppColors.textMuted : AppColors.textDim.withOpacity(0.3);
+    Color textColor = isCurrentMonth ? AppColors.textMuted : AppColors.textDim.withValues(alpha: 0.3);
     FontWeight fontWeight = FontWeight.w400;
 
     if (isSelected) {
@@ -179,7 +179,7 @@ class _DayCell extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(8),
           border: isToday && !isSelected
-              ? Border.all(color: AppColors.accent.withOpacity(0.5), width: 1)
+              ? Border.all(color: AppColors.accent.withValues(alpha: 0.5), width: 1)
               : null,
         ),
         child: Column(
