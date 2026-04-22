@@ -45,10 +45,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _openDetail(PlannerItem item) {
-    final content = ChangeNotifierProvider.value(
-      value: context.read<PlannerProvider>(),
-      child: TaskDetail(item: item),
-    );
+    final provider = context.read<PlannerProvider>();
+    final content = TaskDetail(item: item, provider: provider);
 
     if (_isDesktop) {
       showDialog(
