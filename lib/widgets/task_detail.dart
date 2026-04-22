@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/planner_item.dart';
 import '../models/subtask.dart';
@@ -11,8 +10,9 @@ const _uuid = Uuid();
 
 class TaskDetail extends StatefulWidget {
   final PlannerItem item;
+  final PlannerProvider provider;
 
-  const TaskDetail({super.key, required this.item});
+  const TaskDetail({super.key, required this.item, required this.provider});
 
   @override
   State<TaskDetail> createState() => _TaskDetailState();
@@ -56,7 +56,7 @@ class _TaskDetailState extends State<TaskDetail> {
   }
 
   void _save() {
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     final updated = _item.isTask
         ? _item.copyWith(text: _titleCtrl.text, notes: _notesCtrl.text)
         : _item.copyWith(content: _titleCtrl.text);
@@ -65,7 +65,7 @@ class _TaskDetailState extends State<TaskDetail> {
   }
 
   void _delete() {
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.deleteItem(_item.id, _item.dateKey);
     Navigator.of(context).pop();
   }
@@ -76,7 +76,7 @@ class _TaskDetailState extends State<TaskDetail> {
       _item = _item.copyWith(subtasks: [..._item.subtasks, newSub]);
       _subtaskCtrls.add(TextEditingController());
     });
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.addSubtask(_item.id, _item.dateKey, newSub);
   }
 
@@ -87,7 +87,7 @@ class _TaskDetailState extends State<TaskDetail> {
         subtasks: [..._item.subtasks]..[index] = updated,
       );
     });
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.updateSubtask(_item.id, _item.dateKey, updated);
   }
 
@@ -99,7 +99,7 @@ class _TaskDetailState extends State<TaskDetail> {
       );
       _subtaskCtrls.removeAt(index).dispose();
     });
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.deleteSubtask(_item.id, _item.dateKey, subId);
   }
 
@@ -111,25 +111,25 @@ class _TaskDetailState extends State<TaskDetail> {
         subtasks: [..._item.subtasks]..[index] = updated,
       );
     });
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.toggleSubtask(_item.id, _item.dateKey, sub.id);
   }
 
   void _setPriority(Priority p) {
     setState(() => _item = _item.copyWith(priority: p));
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.updateItem(_item.copyWith(priority: p));
   }
 
   void _setProject(String? id) {
     setState(() => _item = _item.copyWith(projectId: id));
-    final provider = context.read<PlannerProvider>();
+    final provider = widget.provider;
     provider.updateItem(_item.copyWith(projectId: id));
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<PlannerProvider>();
+    final provider = widget.provider;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

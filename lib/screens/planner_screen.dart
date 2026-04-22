@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/planner_item.dart';
@@ -23,10 +21,8 @@ class PlannerScreen extends StatefulWidget {
 class _PlannerScreenState extends State<PlannerScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static bool get _isDesktop {
-    if (kIsWeb) return false;
-    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
-  }
+  bool _isWideScreen(BuildContext context) =>
+      MediaQuery.of(context).size.width >= 900;
 
   @override
   void initState() {
@@ -45,12 +41,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _openDetail(PlannerItem item) {
-    final content = ChangeNotifierProvider.value(
-      value: context.read<PlannerProvider>(),
-      child: TaskDetail(item: item),
-    );
+    final provider = context.read<PlannerProvider>();
+    final content = TaskDetail(item: item, provider: provider);
 
-    if (_isDesktop) {
+    if (_isWideScreen(context)) {
       showDialog(
         context: context,
         barrierColor: Colors.black.withValues(alpha: 0.85),
@@ -90,7 +84,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isDesktop) {
+    if (_isWideScreen(context)) {
       return _DesktopLayout(onItemTap: _openDetail);
     } else {
       return _MobileLayout(
