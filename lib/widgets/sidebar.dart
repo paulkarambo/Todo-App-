@@ -7,6 +7,7 @@ import '../providers/planner_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
 import 'mini_calendar.dart';
+import 'settings_panel.dart';
 
 const _uuid = Uuid();
 
@@ -49,17 +50,12 @@ class SideBar extends StatelessWidget {
                     const _ProjectList(),
                     const SizedBox(height: 16),
                     const _AddProjectButton(),
-                    const SizedBox(height: 20),
-
-                    // Settings
-                    _SectionLabel('Einstellungen'),
-                    const SizedBox(height: 10),
-                    const _SettingsSection(),
                     const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
+            const _SidebarFooter(),
           ],
         ),
       ),
@@ -493,242 +489,30 @@ class _AddProjectButton extends StatelessWidget {
   }
 }
 
-// ── Settings section ──────────────────────────────────────────────────────────
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<PlannerProvider>();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SettingsToggle(
-          label: 'Textelemente',
-          value: provider.showTexts,
-          onChanged: provider.setShowTexts,
-        ),
-        _SettingsToggle(
-          label: 'Unteraufgaben',
-          value: provider.showSubtasks,
-          onChanged: provider.setShowSubtasks,
-        ),
-        _SettingsToggle(
-          label: 'Gruppierungen',
-          value: provider.groupByProject,
-          onChanged: provider.setGroupByProject,
-        ),
-        _SortModeRow(provider: provider),
-        const SizedBox(height: 12),
-        const _SettingsLabel('Standardprojekt'),
-        const SizedBox(height: 6),
-        _DefaultProjectPicker(provider: provider),
-        const SizedBox(height: 12),
-        const _SettingsLabel('Standardpriorität'),
-        const SizedBox(height: 6),
-        _DefaultPriorityPicker(provider: provider),
-      ],
-    );
-  }
-}
-
-class _SettingsLabel extends StatelessWidget {
-  final String text;
-  const _SettingsLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: const TextStyle(
-        fontSize: 8,
-        fontWeight: FontWeight.w900,
-        color: AppColors.textDim,
-        letterSpacing: 1.5,
-      ),
-    );
-  }
-}
-
-class _SettingsToggle extends StatelessWidget {
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SettingsToggle(
-      {required this.label, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-          ),
-          const Spacer(),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppColors.accent,
-            activeTrackColor: AppColors.accent.withValues(alpha: 0.4),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SortModeRow extends StatelessWidget {
-  final PlannerProvider provider;
-  const _SortModeRow({required this.provider});
-
-  static const _modes = [
-    (SortMode.manual, 'M'),
-    (SortMode.priority, 'P'),
-    (SortMode.project, 'G'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          const Text('Sortierung',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-          const Spacer(),
-          ..._modes.map((entry) {
-            final mode = entry.$1;
-            final label = entry.$2;
-            final isActive = provider.sortMode == mode;
-            return Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: GestureDetector(
-                onTap: () => provider.setSortMode(mode),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: isActive ? AppColors.accent : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isActive ? Colors.transparent : AppColors.borderSubtle,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: isActive ? Colors.white : AppColors.textDim,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _DefaultProjectPicker extends StatelessWidget {
-  final PlannerProvider provider;
-  const _DefaultProjectPicker({required this.provider});
+// ── Sidebar footer ────────────────────────────────────────────────────────────
+class _SidebarFooter extends StatelessWidget {
+  const _SidebarFooter();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.borderSubtle)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: provider.defaultProjectId,
-          isExpanded: true,
-          isDense: true,
-          dropdownColor: AppColors.card,
-          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
-          items: [
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('Kein Projekt',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-            ),
-            ...provider.projects.map((p) => DropdownMenuItem<String?>(
-                  value: p.id,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(color: p.color, shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(p.name, style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                )),
-          ],
-          onChanged: provider.setDefaultProject,
-        ),
-      ),
-    );
-  }
-}
-
-class _DefaultPriorityPicker extends StatelessWidget {
-  final PlannerProvider provider;
-  const _DefaultPriorityPicker({required this.provider});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: Priority.values.map((p) {
-        final meta = priorityMeta[p.name]!;
-        final isActive = provider.defaultPriority == p;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: GestureDetector(
-              onTap: () => provider.setDefaultPriority(p),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isActive ? Colors.transparent : AppColors.borderSubtle,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    meta.label[0],
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: isActive ? Colors.white : AppColors.textDim,
-                    ),
-                  ),
-                ),
-              ),
+      child: Row(
+        children: [
+          Tooltip(
+            message: 'Einstellungen',
+            child: IconButton(
+              onPressed: () => showSettingsPanel(context),
+              icon: const Icon(Icons.settings_outlined, size: 20),
+              color: AppColors.textMuted,
             ),
           ),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 }

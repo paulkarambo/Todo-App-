@@ -5,6 +5,7 @@ import '../providers/planner_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
 import '../widgets/quick_entry_card.dart';
+import '../widgets/settings_panel.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/sort_menu.dart';
 import '../widgets/startup_modal.dart';
@@ -107,15 +108,15 @@ class _DesktopLayout extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: Row(
         children: [
-          // Persistent sidebar
           SideBar(persistent: true, onItemTap: onItemTap),
           Container(width: 1, color: AppColors.borderSubtle),
-          // Main content
           Expanded(
             child: Column(
               children: [
-                _TopBar(onMenuTap: null),
-                Expanded(child: _MainContent(onItemTap: onItemTap)),
+                const _TopBar(onMenuTap: null),
+                Expanded(
+                    child: _MainContent(
+                        onItemTap: onItemTap, showQuickEntry: true)),
               ],
             ),
           ),
@@ -133,6 +134,23 @@ class _MobileLayout extends StatelessWidget {
   const _MobileLayout(
       {required this.scaffoldKey, required this.onItemTap});
 
+  void _openQuickEntry(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+        ),
+        child: const QuickEntryCard(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,9 +162,39 @@ class _MobileLayout extends StatelessWidget {
       ),
       body: Column(
         children: [
-          _TopBar(onMenuTap: () => scaffoldKey.currentState?.openDrawer()),
-          Expanded(child: _MainContent(onItemTap: onItemTap)),
+          const _TopBar(onMenuTap: null),
+          Expanded(
+              child:
+                  _MainContent(onItemTap: onItemTap, showQuickEntry: false)),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.accent,
+        onPressed: () => _openQuickEntry(context),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        color: AppColors.card,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.menu_rounded),
+              color: AppColors.textMuted,
+              tooltip: 'Navigation',
+              onPressed: () => scaffoldKey.currentState?.openDrawer(),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              color: AppColors.textMuted,
+              tooltip: 'Einstellungen',
+              onPressed: () => showSettingsPanel(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -271,47 +319,44 @@ class _NavIconBtn extends StatelessWidget {
 // ── Main Content ──────────────────────────────────────────────────────────────
 class _MainContent extends StatelessWidget {
   final void Function(PlannerItem) onItemTap;
+  final bool showQuickEntry;
 
-  const _MainContent({required this.onItemTap});
+  const _MainContent(
+      {required this.onItemTap, this.showQuickEntry = true});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                sliver: SliverToBoxAdapter(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: const QuickEntryCard(),
-                  ),
-                ),
+    return CustomScrollView(
+      slivers: [
+        if (showQuickEntry)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+            sliver: SliverToBoxAdapter(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: const QuickEntryCard(),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverToBoxAdapter(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: _ControlsBar(),
-                  ),
-                ),
+            ),
+          ),
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, showQuickEntry ? 0 : 16, 20, 0),
+          sliver: SliverToBoxAdapter(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: _ControlsBar(),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height - 200,
+                child: TaskList(onItemTap: onItemTap),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverToBoxAdapter(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: SizedBox(
-                      height: MediaQuery.of(context).size.height - 250,
-                      child: TaskList(onItemTap: onItemTap),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],

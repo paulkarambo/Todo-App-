@@ -42,8 +42,9 @@ class _TaskRow extends StatelessWidget {
     final provider = context.watch<PlannerProvider>();
     final priorityColor = priorityMeta[item.priority.name]!.color;
     final project = provider.projectById(item.projectId);
+    final isNarrow = MediaQuery.of(context).size.width < 900;
 
-    return InkWell(
+    final rowContent = InkWell(
       onTap: () => onTap(item),
       borderRadius: BorderRadius.circular(24),
       child: Padding(
@@ -199,6 +200,34 @@ class _TaskRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    // On mobile, wrap with swipe-to-complete (only for non-draggable tasks)
+    if (!isNarrow || isDraggable) return rowContent;
+
+    return Dismissible(
+      key: Key('${item.id}_swipe'),
+      direction: DismissDirection.startToEnd,
+      background: Container(
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        child: Icon(
+          item.completed
+              ? Icons.radio_button_unchecked_rounded
+              : Icons.check_circle_outline_rounded,
+          color: AppColors.accent,
+          size: 22,
+        ),
+      ),
+      confirmDismiss: (_) async {
+        provider.toggleCompleted(item.id, item.dateKey);
+        return false;
+      },
+      child: rowContent,
     );
   }
 }
